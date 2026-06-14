@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scion 1e - Roue de Combat</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --pj-color: #3498db;
+            --pnj-color: #e74c3c;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h1 { margin: 0; color: var(--primary); font-size: 1.8em; }
+        
+        .top-stats {
+            text-align: right;
+            font-size: 1.1em;
+            color: var(--text-light);
+        }
+
+        .top-stats strong { color: var(--primary); }
+
+        .hidden { display: none !important; }
+
+        /* Formules */
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .form-row input, .form-row select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .form-row input[type="text"] { flex-grow: 1; min-width: 150px; }
+        .form-row input[type="number"] { width: 90px; }
+        
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1em;
+            color: white;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button:hover { opacity: 0.9; }
+        button:active { transform: scale(0.98); }
+
+        .btn-primary { background-color: var(--primary); }
+        .btn-success { background-color: var(--success); width: 100%; padding: 15px; font-size: 1.2em; margin-top: 20px;}
+        .btn-accent { background-color: var(--accent); }
+        .btn-warning { background-color: var(--warning); }
+        .btn-danger { background-color: var(--danger); }
+
+        /* Liste de préparation */
+        .prep-list { margin-top: 20px; }
+        .prep-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+        .prep-item:last-child { border-bottom: none; }
+        .tag {
+            font-size: 0.8em;
+            padding: 3px 8px;
+            border-radius: 12px;
+            color: white;
+            margin-left: 10px;
+        }
+        .tag.pj { background-color: var(--pj-color); }
+        .tag.pnj { background-color: var(--pnj-color); }
+
+        /* Zone de Combat */
+        .combat-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .combat-layout { grid-template-columns: 1fr; }
+        }
+
+        .canvas-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            background: #fafafa;
+            border-radius: 50%;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.05);
+            max-width: 100%;
+        }
+
+        .active-actions {
+            background: #fff;
+            border: 2px solid var(--success);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .active-actions h3 { margin-top: 0; color: var(--success); }
+
+        .combatant-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .combatant-card.is-active {
+            border-left-color: var(--success);
+            background: #eafaf1;
+        }
+
+        .combatant-card .actions { display: flex; gap: 5px; }
+        .combatant-card input { width: 60px; text-align: center; }
+
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            background: #fee;
+            color: #c0392b;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Tracker Scion 1e</h1>
+            <div class="top-stats hidden" id="combat-stats">
+                Tick Actuel : <strong id="display-tick" style="font-size:1.5em; color:var(--success);">0</strong><br>
+                Compte de Réaction : <strong id="display-reaction">0</strong>
+                <button class="btn-warning" style="margin-left: 15px; padding: 5px 10px;" onclick="resetCombat()">Réinitialiser le combat</button>
+            </div>
+        </div>
+
+        <div id="error-message" class="message"></div>
+
+        <!-- PHASE 1 : PRÉPARATION -->
+        <div id="setup-phase">
+            <h2>Préparation du Combat</h2>
+            <p style="color: var(--text-light);">Ajoutez les combattants. Le système calculera automatiquement les succès épiques et les positions de départ (Max retard = 6).</p>
+            
+            <form id="add-form" class="form-row">
+                <input type="text" id="prep-name" placeholder="Nom du personnage" required>
+                <select id="prep-type">
+                    <option value="pj">PJ (Joueur)</option>
+                    <option value="pnj">PNJ / Monstre</option>
+                </select>
+                <input type="number" id="prep-succ" placeholder="Succès" title="Succès aux dés (sans l'épique)" min="0" value="0" required>
+                <input type="number" id="prep-epic" placeholder="Ast. Épique" title="Niveau d'Astuce Épique (1-7)" min="0" max="10" value="0">
+                <button type="submit" class="btn-primary">Ajouter</button>
+            </form>
+
+            <div class="prep-list" id="prep-list">
+                <!-- Liste des préparés -->
+            </div>
+
+            <button class="btn-success" onclick="startCombat()" id="btn-start" style="display:none;">Lancer le Combat ⚔️</button>
+        </div>
+
+
+        <!-- PHASE 2 : COMBAT -->
+        <div id="combat-phase" class="hidden">
+            <div class="combat-layout">
+                <!-- Roue Visuelle -->
+                <div class="canvas-container">
+                    <canvas id="battlewheel" width="400" height="400"></canvas>
+                    
+                    <button class="btn-accent" onclick="advanceTimeIntelligently()" style="margin-top: 20px; width: 100%; font-size:1.1em; padding:12px;">
+                        Avancer le temps ⏳
+                    </button>
+                </div>
+
+                <!-- Actions et Arrivants -->
+                <div>
+                    <div class="active-actions" id="active-panel">
+                        <h3>En attente d'action</h3>
+                        <div id="active-list">
+                            <!-- Les persos qui doivent jouer maintenant -->
+                        </div>
+                    </div>
+
+                    <div style="margin-top:30px;">
+                        <h4 style="margin-bottom: 10px;">Ajouter un retardataire</h4>
+                        <form id="latecomer-form" class="form-row" style="flex-direction: column; align-items: stretch;">
+                            <div style="display:flex; gap:5px;">
+                                <input type="text" id="late-name" placeholder="Nom" required style="flex-grow:1;">
+                                <select id="late-type"><option value="pj">PJ</option><option value="pnj">PNJ</option></select>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <input type="number" id="late-succ" placeholder="Succès" min="0" value="0" style="flex-grow:1;">
+                                <input type="number" id="late-epic" placeholder="Ast. Ép." min="0" max="10" value="0" style="flex-grow:1;">
+                                <button type="submit" class="btn-primary">Ajouter</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DONNÉES ET ÉTAT ---
+        const state = {
+            phase: 'setup',
+            combatants: [],
+            currentTick: 0,
+            reactionCount: 0,
+            wheelSegments: 8 // Roue Exalted/Scion standard: 0 à 7
+        };
+
+        // Table officielle Scion 1e pour les succès automatiques des Attributs Épiques
+        const epicTable = [0, 1, 2, 4, 7, 11, 16, 22, 29, 37, 46];
+
+        // --- UTILITAIRES ---
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+        
+        function getEpicSuccesses(level) {
+            if (level < 0) return 0;
+            if (level >= epicTable.length) return epicTable[epicTable.length - 1];
+            return epicTable[level];
+        }
+
+        function showMessage(msg) {
+            const err = document.getElementById('error-message');
+            err.innerText = msg;
+            err.style.display = 'block';
+            setTimeout(() => { err.style.display = 'none'; }, 4000);
+        }
+
+        // --- GESTION DU DOM ---
+        const dom = {
+            setupPhase: document.getElementById('setup-phase'),
+            combatPhase: document.getElementById('combat-phase'),
+            prepList: document.getElementById('prep-list'),
+            activeList: document.getElementById('active-list'),
+            addForm: document.getElementById('add-form'),
+            latecomerForm: document.getElementById('latecomer-form'),
+            btnStart: document.getElementById('btn-start'),
+            statsBar: document.getElementById('combat-stats'),
+            canvas: document.getElementById('battlewheel'),
+            ctx: document.getElementById('battlewheel').getContext('2d')
+        };
+
+        // --- PHASE 1 : AJOUT ---
+        dom.addForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('prep-name').value.trim();
+            const type = document.getElementById('prep-type').value;
+            const succ = parseInt(document.getElementById('prep-succ').value) || 0;
+            const epic = parseInt(document.getElementById('prep-epic').value) || 0;
+
+            const totalSucc = succ + getEpicSuccesses(epic);
+
+            state.combatants.push({
+                id: generateId(),
+                name: name,
+                type: type,
+                successes: succ,
+                epicWits: epic,
+                totalSuccesses: totalSucc,
+                tick: 0 // sera calculé au start
+            });
+
+            document.getElementById('prep-name').value = '';
+            document.getElementById('prep-succ').value = '0';
+            document.getElementById('prep-epic').value = '0';
+            document.getElementById('prep-name').focus();
+
+            renderSetup();
+        });
+
+        function removeCombatant(id) {
+            state.combatants = state.combatants.filter(c => c.id !== id);
+            if (state.phase === 'setup') renderSetup();
+            else renderCombat();
+        }
+
+        function renderSetup() {
+            dom.prepList.innerHTML = '';
+            state.combatants.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'prep-item';
+                div.innerHTML = `
+                    <div>
+                        <strong>${c.name}</strong> 
+                        <span class="tag ${c.type}">${c.type.toUpperCase()}</span>
+                        <br>
+                        <small style="color:#666;">Dés: ${c.successes} | Ast. Épique: ${c.epicWits} (Total Succès: ${c.totalSuccesses})</small>
+                    </div>
+                    <button class="btn-danger" style="padding: 5px 10px;" onclick="removeCombatant('${c.id}')">✕</button>
+                `;
+                dom.prepList.appendChild(div);
+            });
+
+            dom.btnStart.style.display = state.combatants.length > 0 ? 'block' : 'none';
+        }
+
+        // --- LANCEMENT DU COMBAT ---
+        function startCombat() {
+            if (state.combatants.length === 0) return;
+
+            // 1. Déterminer le compte de réaction (max total succès)
+            state.reactionCount = Math.max(...state.combatants.map(c => c.totalSuccesses), 0);
+
+            // 2. Assigner les Ticks de départ
+            state.combatants.forEach(c => {
+                let delay = state.reactionCount - c.totalSuccesses;
+                if (delay > 6) delay = 6; // Pire position de départ : Tick 6 max
+                if (delay < 0) delay = 0;
+                c.tick = delay;
+            });
+
+            state.currentTick = 0;
+            state.phase = 'combat';
+            
+            dom.setupPhase.classList.add('hidden');
+            dom.combatPhase.classList.remove('hidden');
+            dom.statsBar.classList.remove('hidden');
+            
+            renderCombat();
+            advanceTimeIntelligently(); // Saute directement au premier tick où qqun agit
+        }
+
+        // --- RETARDATAIRES (En cours de combat) ---
+        dom.latecomerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('late-name').value.trim();
+            const type = document.getElementById('late-type').value;
+            const succ = parseInt(document.getElementById('late-succ').value) || 0;
+            const epic = parseInt(document.getElementById('late-epic').value) || 0;
+
+            const totalSucc = succ + getEpicSuccesses(epic);
+            
+            // Calcul Scion : Base = Compte de Réaction (ou 6 si < 6)
+            const baseCount = state.reactionCount < 6 ? 6 : state.reactionCount;
+            
+            // Retard = écart absolu entre ses succès et la base
+            let delay = Math.abs(totalSucc - baseCount);
+            
+            // Plafond du retard à 6 max
+            if (delay > 6) delay = 6;
+
+            state.combatants.push({
+                id: generateId(),
+                name: name,
+                type: type,
+                successes: succ,
+                epicWits: epic,
+                totalSuccesses: totalSucc,
+                tick: state.currentTick + delay
+            });
+
+            document.getElementById('late-name').value = '';
+            document.getElementById('late-succ').value = '0';
+            document.getElementById('late-epic').value = '0';
+            
+            renderCombat();
+        });
+
+
+        // --- ACTIONS EN COMBAT ---
+        function takeAction(id) {
+            const char = state.combatants.find(c => c.id === id);
+            if (!char) return;
+
+            const speedInput = document.getElementById(`speed-${id}`);
+            const speed = parseInt(speedInput.value);
+
+            if (isNaN(speed) || speed <= 0) {
+                showMessage("Veuillez entrer une Vitesse valide.");
+                return;
+            }
+
+            char.tick += speed;
+            renderCombat();
+        }
+
+        function advanceTimeIntelligently() {
+            if (state.combatants.length === 0) return;
+
+            const pending = state.combatants.filter(c => c.tick === state.currentTick);
+            if (pending.length > 0) {
+                showMessage("Tous les personnages sur le tick actuel doivent agir avant d'avancer !");
+                return;
+            }
+
+            // Cherche le prochain tick le plus bas
+            const nextTick = Math.min(...state.combatants.map(c => c.tick));
+            state.currentTick = nextTick;
+            
+            renderCombat();
+        }
+
+        function resetCombat() {
+            if(!confirm("Réinitialiser ? Les PNJ seront effacés. Les PJ seront conservés mais leurs succès remis à 0.")) return;
+
+            // Garder uniquement les PJ, reset ticks et succès
+            state.combatants = state.combatants.filter(c => c.type === 'pj').map(c => ({
+                ...c,
+                successes: 0,
+                totalSuccesses: getEpicSuccesses(c.epicWits),
+                tick: 0
+            }));
+
+            state.currentTick = 0;
+            state.reactionCount = 0;
+            state.phase = 'setup';
+
+            dom.setupPhase.classList.remove('hidden');
+            dom.combatPhase.classList.add('hidden');
+            dom.statsBar.classList.add('hidden');
+
+            renderSetup();
+        }
+
+        // --- AFFICHAGE COMBAT ---
+        function renderCombat() {
+            document.getElementById('display-tick').innerText = state.currentTick;
+            document.getElementById('display-reaction').innerText = state.reactionCount;
+
+            dom.activeList.innerHTML = '';
+            
+            // Trier pour affichage
+            const sorted = [...state.combatants].sort((a, b) => a.tick - b.tick);
+            
+            let hasActive = false;
+
+            sorted.forEach(c => {
+                const isActive = c.tick === state.currentTick;
+                if (isActive) hasActive = true;
+
+                // On n'affiche dans la liste que les persos actifs ou très proches
+                if (c.tick <= state.currentTick + 2) {
+                    const div = document.createElement('div');
+                    div.className = `combatant-card ${isActive ? 'is-active' : ''}`;
+                    
+                    div.innerHTML = `
+                        <div>
+                            <strong>${c.name}</strong> 
+                            <span class="tag ${c.type}">${c.type.toUpperCase()}</span>
+                            <div style="font-size:0.85em; color:#666; margin-top:3px;">
+                                ${isActive ? 'Doit agir !' : `Agit au tick ${c.tick} (dans ${c.tick - state.currentTick})`}
+                            </div>
+                        </div>
+                        <div class="actions">
+                            ${isActive ? `
+                                <input type="number" id="speed-${c.id}" value="4" min="1" max="6" title="Vitesse de l'action">
+                                <button class="btn-success" onclick="takeAction('${c.id}')">Action</button>
+                            ` : ''}
+                            <button class="btn-danger" style="padding: 8px;" onclick="removeCombatant('${c.id}')" title="Retirer">✕</button>
+                        </div>
+                    `;
+                    dom.activeList.appendChild(div);
+                }
+            });
+
+            if (!hasActive && state.combatants.length > 0) {
+                dom.activeList.innerHTML = `<p style="color:#666; font-style:italic;">Personne n'agit sur ce tick. Cliquez sur 'Avancer le temps'.</p>`;
+            }
+
+            drawWheel();
+        }
+
+        // --- DESSIN DE LA ROUE ---
+        function drawWheel() {
+            const ctx = dom.ctx;
+            const w = dom.canvas.width;
+            const h = dom.canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = (w / 2) - 20;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Dessiner la roue de base
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.stroke();
+
+            // Sections
+            const angleStep = (2 * Math.PI) / state.wheelSegments;
+            
+            for (let i = 0; i < state.wheelSegments; i++) {
+                const angle = i * angleStep - (Math.PI / 2); // Démarre en haut
+                
+                // Lignes de séparation
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + radius * Math.cos(angle + angleStep/2), cy + radius * Math.sin(angle + angleStep/2));
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Nombres (0 à 7)
+                const textRadius = radius - 25;
+                const tx = cx + textRadius * Math.cos(angle);
+                const ty = cy + textRadius * Math.sin(angle);
+                
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#95a5a6';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Mettre en surbrillance le tick visuel actuel (modulo 8)
+                if (i === state.currentTick % state.wheelSegments) {
+                    ctx.fillStyle = '#f39c12';
+                    ctx.font = 'bold 24px Arial';
+                }
+                ctx.fillText(i, tx, ty);
+            }
+
+            // Grouper les combattants par section (modulo 8)
+            const slices = {};
+            for(let i=0; i<8; i++) slices[i] = [];
+            
+            state.combatants.forEach(c => {
+                const visualSlice = c.tick % state.wheelSegments;
+                slices[visualSlice].push(c);
+            });
+
+            // Dessiner les pions
+            for(let i=0; i<8; i++) {
+                if(slices[i].length === 0) continue;
+                
+                const angle = i * angleStep - (Math.PI / 2);
+                
+                // Distribuer les pions du centre vers le bord
+                slices[i].forEach((char, index) => {
+                    const offsetRadius = 40 + (index * 25); 
+                    if (offsetRadius > radius - 10) return; // Éviter de sortir
+
+                    const px = cx + offsetRadius * Math.cos(angle);
+                    const py = cy + offsetRadius * Math.sin(angle);
+
+                    drawPill(ctx, px, py, char, angle);
+                });
+            }
+        }
+
+        function drawPill(ctx, x, y, char, angle) {
+            const isActive = char.tick === state.currentTick;
+            const isFutureLap = char.tick >= state.currentTick + state.wheelSegments;
+            
+            let text = char.name.substring(0, 8);
+            if (isFutureLap) text += " (+)";
+
+            ctx.font = isActive ? 'bold 12px Arial' : '11px Arial';
+            const textWidth = ctx.measureText(text).width;
+            const padding = 6;
+            const w = textWidth + padding * 2;
+            const h = 20;
+
+            // Rotation pour aligner le texte avec le rayon (optionnel, mais on va le garder droit pour la lisibilité)
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Background pill
+            ctx.beginPath();
+            ctx.roundRect(-w/2, -h/2, w, h, 10);
+            
+            if (isActive) {
+                ctx.fillStyle = '#27ae60'; // Vert si actif
+            } else {
+                ctx.fillStyle = char.type === 'pj' ? '#3498db' : '#e74c3c';
+            }
+            ctx.fill();
+
+            // Bordure si actif
+            if (isActive) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#1e8449';
+                ctx.stroke();
+            }
+
+            // Text
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 0, 0);
+
+            ctx.restore();
+        }
+
+    </script>
+</body>
+</html>
